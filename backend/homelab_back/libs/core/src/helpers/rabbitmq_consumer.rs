@@ -3,13 +3,11 @@ use crate::helpers::rabbitmq_topology::{dead_letter_queue, declare_service_topol
 use lapin::options::BasicNackOptions;
 use lapin::{
     options::{
-        BasicAckOptions, BasicConsumeOptions, ExchangeDeclareOptions, QueueBindOptions,
-        QueueDeclareOptions,
+        BasicAckOptions, BasicConsumeOptions,
     },
     types::FieldTable,
-    Connection, ConnectionProperties, ExchangeKind, Result,
+    Connection, ConnectionProperties, Result,
 };
-use std::fmt::format;
 use std::sync::Arc;
 use tonic::codegen::tokio_stream::StreamExt;
 
@@ -31,7 +29,7 @@ impl RabbitMqConsumer {
         let mut consumer = channel
             .basic_consume(
                 &queue_name,
-                "nas_generic_consumer",
+                &consumer_tag,
                 BasicConsumeOptions::default(),
                 FieldTable::default(),
             )
