@@ -85,9 +85,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     ));
 
     tokio::spawn(async move {
-        let patterns = vec!["user.#", "file.#"];
+        let patterns = vec![
+            "user.created", "user.updated",
+            "whitelisted.user.created", "whitelisted.user.updated",
+            "file.uploaded", "file.updated",
+        ];
 
-        if let Err(e) = RabbitMqConsumer::start(&rabbit_url, event_handler, patterns).await {
+        if let Err(e) = RabbitMqConsumer::start(&rabbit_url, event_handler, patterns, "admin_console").await {
             eprintln!("🔥 Consumer died: {}", e);
         }
     });
