@@ -56,19 +56,27 @@ impl UserService for UserServiceImpl {
             user.external_id
         );
 
+        // Commit before announcing. Publishing first advertised an email and full_name
+        // that were not in the database yet, so a failing `save` left nas provisioned and
+        // admin-console logged for a finalize that never happened. Matches the
+        // save-then-publish shape `update_profile` already uses.
+        self.user_repo.save(u.clone()).await?;
+
         let event: UserCreatedEvent = UserCreatedEvent::new(
             u.id.clone(),
             u.email.clone(),
             u.full_name.clone(),
             u.created_at.clone(),
             10 * 1024 * 1024 * 1024, // 10GB
+            u.external_id.clone(),
         );
 
+        // The account is committed; a failed projection must not fail it.
         if let Err(e) = self.publisher.publish(&event).await {
             eprintln!("Failed to publish event: {:?}", e);
         }
 
-        self.user_repo.save(u).await
+        Ok(())
     }
 
     async fn get_by_id(&self, id: Uuid) -> Result<Option<User>, DataError> {

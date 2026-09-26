@@ -12,6 +12,7 @@ use crate::db::file_repository::{FileRepository, FileRepositoryImpl};
 use crate::db::folder_repository::{FolderRepository, FolderRepositoryImpl};
 use crate::db::global_file_repository::GlobalFileRepositoryImpl;
 use crate::db::label_repository::LabelRepositoryImpl;
+use crate::db::nas_identity_repository::NasIdentityRepositoryImpl;
 use crate::db::shared_file_repository::SharedFileRepositoryImpl;
 use crate::db::storage_profile_repository::StorageProfileRepositoryImpl;
 use crate::events::nas_event_handler::NasEventHandler;
@@ -31,6 +32,7 @@ use crate::service::contract::folder_write_service::FolderWriteService;
 use crate::service::contract::global_file_service::GlobalFileService;
 use crate::service::contract::label_service::LabelService;
 use crate::service::contract::shared_file_service::SharedFileService;
+use crate::service::contract::nas_identity_service::NasIdentityService;
 use crate::service::contract::sp_service::StorageProfileService;
 use crate::service::contract::volume_service::VolumeService;
 use crate::service::r#impl::clean_up_service_impl::CleanUpServiceImpl;
@@ -41,6 +43,7 @@ use crate::service::r#impl::folder_read_service_impl::FolderReadServiceImpl;
 use crate::service::r#impl::folder_write_service_impl::FolderWriteServiceImpl;
 use crate::service::r#impl::global_file_service_impl::GlobalFileServiceImpl;
 use crate::service::r#impl::label_service_impl::LabelServiceImpl;
+use crate::service::r#impl::nas_identity_service_impl::NasIdentityServiceImpl;
 use crate::service::r#impl::shared_file_service_impl::SharedFileServiceImpl;
 use crate::service::r#impl::sp_service_impl::StorageProfileServiceImpl;
 use crate::service::r#impl::volume_service_impl::VolumeServiceImpl;
@@ -79,10 +82,11 @@ pub struct AppState {
     pub label_service: Arc<dyn LabelService>,
     pub file_label_service: Arc<dyn FileLabelService>,
     pub storage_profile_service: Arc<dyn StorageProfileService>,
+    pub nas_identity_service: Arc<dyn NasIdentityService>,
     pub volume_service: Arc<dyn VolumeService>,
     pub folder_read_service: Arc<dyn FolderReadService>,
     pub file_read_service: Arc<dyn FileReadService>,
-    pub cached_identity_resolver: Arc<CacheIdentityResolver<StorageProfileRepositoryImpl>>,
+    pub cached_identity_resolver: Arc<CacheIdentityResolver<NasIdentityRepositoryImpl>>,
     pub auth_state: AuthState,
 }
 
@@ -173,6 +177,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let event_handler = Arc::new(NasEventHandler::new(
         app_state.storage_profile_service.clone(),
+        app_state.nas_identity_service.clone(),
         clean_up_service.clone(),
     ));
 
@@ -257,6 +262,7 @@ async fn init_app_state(
 ) -> Data<AppState> {
     let file_repo = Arc::new(FileRepositoryImpl::new(pool.clone()));
     let storage_profile_repo = Arc::new(StorageProfileRepositoryImpl::new(pool.clone()));
+    let nas_identity_repo = Arc::new(NasIdentityRepositoryImpl::new(pool.clone()));
     let folder_repo = Arc::new(FolderRepositoryImpl::new(pool.clone()));
     let share_file_repo = Arc::new(SharedFileRepositoryImpl::new(pool.clone()));
     let global_file_repo = Arc::new(GlobalFileRepositoryImpl::new(pool.clone()));
@@ -274,6 +280,7 @@ async fn init_app_state(
         file_repo.clone(),
         folder_repo.clone(),
         storage_profile_repo.clone(),
+        nas_identity_repo.clone(),
         root_path.to_path_buf(),
         publisher.clone(),
     ));
@@ -297,11 +304,13 @@ async fn init_app_state(
     ));
     let storage_profile_service = Arc::new(StorageProfileServiceImpl::new(
         storage_profile_repo.clone(),
+        nas_identity_repo.clone(),
         publisher.clone(),
     ));
+    let nas_identity_service = Arc::new(NasIdentityServiceImpl::new(nas_identity_repo.clone()));
 
     let cached_identity_resolver =
-        Arc::new(CacheIdentityResolver::new((*storage_profile_repo).clone()));
+        Arc::new(CacheIdentityResolver::new((*nas_identity_repo).clone()));
 
     Data::new(AppState {
         file_write_service,
@@ -313,6 +322,7 @@ async fn init_app_state(
         label_service,
         file_label_service,
         storage_profile_service,
+        nas_identity_service,
         volume_service,
         file_read_service,
         folder_read_service,

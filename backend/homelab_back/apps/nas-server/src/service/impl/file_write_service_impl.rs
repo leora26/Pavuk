@@ -4,6 +4,7 @@ use crate::data::move_file_command::MoveFileCommand;
 use crate::data::update_file_name_command::UpdateFileNameCommand;
 use crate::db::file_repository::FileRepository;
 use crate::db::folder_repository::FolderRepository;
+use crate::db::nas_identity_repository::NasIdentityRepository;
 use crate::db::storage_profile_repository::StorageProfileRepository;
 use crate::events::rabbitmq::RabbitMqPublisher;
 use crate::helpers::data_error::DataError;
@@ -31,6 +32,7 @@ pub struct FileWriteServiceImpl {
     file_repo: Arc<dyn FileRepository>,
     folder_repo: Arc<dyn FolderRepository>,
     sp_repo: Arc<dyn StorageProfileRepository>,
+    nas_identity_repo: Arc<dyn NasIdentityRepository>,
     storage_path: PathBuf,
     publisher: Arc<RabbitMqPublisher>,
 }
@@ -87,13 +89,17 @@ impl FileWriteService for FileWriteServiceImpl {
                 eprintln!("Failed to publish event: {:?}", e);
             }
 
+            // Block state comes from nas's identity projection; admin-console writes this
+            // field straight into `console_users.is_blocked`.
+            let is_blocked = self.nas_identity_repo.is_user_blocked(sp.user_id).await?;
+
             let sp_event: UserUpdatedEvent = UserUpdatedEvent::new(
                 sp.user_id.clone(),
                 None,
                 None,
                 Some(sp.allowed_storage.clone()),
                 Some(sp.taken_storage.clone()),
-                sp.is_blocked.clone(),
+                is_blocked,
             );
 
             if let Err(e) = self.publisher.publish(&sp_event).await {
@@ -786,13 +792,15 @@ impl FileWriteServiceImpl {
             .await?
             .ok_or_else(|| DataError::EntityNotFoundException("User".to_string()))?;
 
+        let is_blocked = self.nas_identity_repo.is_user_blocked(owner_id).await?;
+
         let sp_event = UserUpdatedEvent::new(
             sp.user_id.clone(),
             None,
             None,
             Some(sp.allowed_storage.clone()),
             Some(sp.taken_storage.clone()),
-            sp.is_blocked.clone(),
+            is_blocked,
         );
 
         if let Err(e) = self.publisher.publish(&sp_event).await {

@@ -10,3 +10,4 @@ pub mod preview_service;
 pub mod shared_file_service;
 pub mod sp_service;
 pub mod volume_service;
+pub mod nas_identity_service;

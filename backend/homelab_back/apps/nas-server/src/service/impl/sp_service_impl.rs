@@ -5,6 +5,7 @@ use uuid::Uuid;
 use homelab_core::events::{UserCreatedEvent, UserUpdatedEvent};
 use homelab_core::nas_domain::storage_profile::StorageProfile;
 use homelab_core::nas_domain::storage_stats::StorageStats;
+use crate::db::nas_identity_repository::NasIdentityRepository;
 use crate::db::storage_profile_repository::StorageProfileRepository;
 use crate::events::rabbitmq::RabbitMqPublisher;
 use crate::helpers::data_error::DataError;
@@ -13,17 +14,17 @@ use crate::service::contract::sp_service::StorageProfileService;
 #[derive(new)]
 pub struct StorageProfileServiceImpl {
     storage_profile_repo: Arc<dyn StorageProfileRepository>,
+    nas_identity_repo: Arc<dyn NasIdentityRepository>,
     publisher: Arc<RabbitMqPublisher>,
 }
 
 #[async_trait]
 impl StorageProfileService for StorageProfileServiceImpl {
-    async fn save_storage_profile(&self, event: UserCreatedEvent) -> Result<StorageProfile, DataError> {
+    async fn save_storage_profile(&self, event: &UserCreatedEvent) -> Result<StorageProfile, DataError> {
         let profile: StorageProfile = StorageProfile::new(
             event.user_id,
             event.default_storage,
             0i64,
-            false
         );
 
         self.storage_profile_repo.create(profile).await
@@ -34,13 +35,13 @@ impl StorageProfileService for StorageProfileServiceImpl {
             .await?
             .ok_or_else(|| DataError::EntityNotFoundException("Storage profile".to_string()))?;
 
-        // Only the quota and block flag come from this event; `taken_storage` is owned
-        // by the file operations and must not be written back from a stale read.
+        // Only the quota comes from this event; `taken_storage` is owned by the file
+        // operations and must not be written back from a stale read, and `is_blocked` is
+        // projected separately by `NasIdentityService`.
         self.storage_profile_repo
-            .update_quota_and_block(
+            .update_quota(
                 event.user_id,
                 event.allowed_storage.unwrap_or(sp.allowed_storage),
-                event.is_blocked,
             )
             .await
     }
@@ -61,13 +62,15 @@ impl StorageProfileService for StorageProfileServiceImpl {
             .await?
             .ok_or_else(|| DataError::EntityNotFoundException("Storage Profile".to_string()))?;
 
+        let is_blocked = self.nas_identity_repo.is_user_blocked(id).await?;
+
         let sp_event: UserUpdatedEvent = UserUpdatedEvent::new(
             sp.user_id.clone(),
             None,
             None,
             Some(sp.allowed_storage.clone()),
             Some(taken_storage),
-            sp.is_blocked.clone(),
+            is_blocked,
         );
 
         if let Err(e) = self.publisher.publish(&sp_event).await {

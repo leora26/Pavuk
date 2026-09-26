@@ -5,3 +5,4 @@ pub mod global_file_repository;
 pub mod label_repository;
 pub mod shared_file_repository;
 pub mod storage_profile_repository;
+pub mod nas_identity_repository;

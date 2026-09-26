@@ -47,12 +47,17 @@ pub fn map_storage_stats_to_proto(s: StorageStats) -> StorageStatsResponse {
     }
 }
 
-pub fn map_storage_profile_to_proto(sp: StorageProfile) -> StorageProfileResponse {
+/// `is_blocked` is passed in rather than read off the profile: it lives in
+/// `nas_identities` now, and `storage_profiles` is quota-only.
+pub fn map_storage_profile_to_proto(
+    sp: StorageProfile,
+    is_blocked: bool,
+) -> StorageProfileResponse {
     StorageProfileResponse {
         user_id: Option::from(map_id_to_proto(sp.user_id)),
         allowed_storage: sp.allowed_storage,
         taken_storage: sp.taken_storage,
-        is_blocked: sp.is_blocked,
+        is_blocked,
     }
 }
 

@@ -26,7 +26,12 @@ impl StorageProfileService for GrpcStorageProfileService {
             .await?
             .ok_or_else(|| Status::not_found(format!("No storage was found with given id: {}", id)))?;
 
-        Ok(Response::new(map_storage_profile_to_proto(sp)))
+        // Structurally always false here — `get_internal_id` rejects a blocked caller
+        // before this runs. Read it anyway so the wire contract stays honest if that
+        // guard is ever relaxed.
+        let is_blocked = self.app_state.nas_identity_service.is_blocked(id).await?;
+
+        Ok(Response::new(map_storage_profile_to_proto(sp, is_blocked)))
     }
 
     async fn get_storage_stats(&self, request: Request<()>) -> Result<Response<StorageStatsResponse>, Status> {

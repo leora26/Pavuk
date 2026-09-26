@@ -202,17 +202,29 @@ async fn seed_user(
     let allowed_storage: i64 = 100 * 1024 * 1024;
     sqlx::query!(
         r#"
-        INSERT INTO storage_profiles (user_id, allowed_storage, taken_storage, is_blocked, external_id)
-        VALUES ($1, $2, $3, false, $4)
+        INSERT INTO storage_profiles (user_id, allowed_storage, taken_storage)
+        VALUES ($1, $2, $3)
         ON CONFLICT (user_id) DO NOTHING
         "#,
         local_user_id,
         allowed_storage,
-        0i64,
+        0i64
+    ).execute(pool).await?;
+
+    // The identity projection nas authenticates against. DO UPDATE on external_id, not
+    // DO NOTHING: the users upsert above refreshes it on a re-run against a recreated
+    // Zitadel, and this row has to follow or the seeded admin stops resolving.
+    sqlx::query!(
+        r#"
+        INSERT INTO nas_identities (user_id, external_id, is_blocked)
+        VALUES ($1, $2, FALSE)
+        ON CONFLICT (user_id) DO UPDATE SET external_id = EXCLUDED.external_id
+        "#,
+        local_user_id,
         zitadel_id
     ).execute(pool).await?;
 
-    println!("✅ Ensured Storage Profile and Root Folder exist");
+    println!("✅ Ensured Storage Profile, Nas Identity and Root Folder exist");
     println!("🔑 Login: {} / {}", email, password);
 
     Ok(())

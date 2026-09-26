@@ -14,7 +14,8 @@ pub struct UserCreatedEvent {
     pub email: String,
     pub full_name: String,
     pub created_at: OffsetDateTime,
-    pub default_storage: i64
+    pub default_storage: i64,
+    pub external_id: String,
 }
 
 impl DomainEvent for UserCreatedEvent {

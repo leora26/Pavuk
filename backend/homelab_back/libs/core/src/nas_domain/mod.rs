@@ -7,3 +7,4 @@ pub mod shared_file;
 pub mod storage_profile;
 pub mod volume;
 pub mod storage_stats;
+pub mod nas_identity;

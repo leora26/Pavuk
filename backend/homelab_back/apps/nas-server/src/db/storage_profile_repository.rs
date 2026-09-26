@@ -1,24 +1,17 @@
-use std::error::Error;
 use crate::helpers::data_error::DataError;
 use async_trait::async_trait;
 use homelab_core::nas_domain::storage_profile::StorageProfile;
 use sqlx::PgPool;
 use uuid::Uuid;
-use homelab_core::auth::resolver::ExternalIdResolver;
 use homelab_core::nas_domain::storage_stats::StorageStats;
 
 #[async_trait]
 pub trait StorageProfileRepository: Send + Sync {
     async fn create(&self, storage_profile: StorageProfile) -> Result<StorageProfile, DataError>;
     async fn get_by_id(&self, id: Uuid) -> Result<Option<StorageProfile>, DataError>;
-    async fn save(&self, storage_profile: StorageProfile) -> Result<(), DataError>;
-    /// Updates only the quota and block flag, leaving `taken_storage` untouched.
-    async fn update_quota_and_block(
-        &self,
-        user_id: Uuid,
-        allowed_storage: i64,
-        is_blocked: bool,
-    ) -> Result<(), DataError>;
+    /// Updates only the quota, leaving `taken_storage` untouched. Block state lives in
+    /// `nas_identities`.
+    async fn update_quota(&self, user_id: Uuid, allowed_storage: i64) -> Result<(), DataError>;
     /// Rebuilds `taken_storage` from the files that actually exist, returning the new value.
     async fn recompute_taken_storage(&self, user_id: Uuid) -> Result<i64, DataError>;
     async fn get_stats(&self, id: Uuid) -> Result<StorageStats, DataError>;
@@ -35,30 +28,7 @@ impl StorageProfileRepositoryImpl {
     }
 }
 
-#[async_trait]
-impl ExternalIdResolver for StorageProfileRepositoryImpl {
-    async fn resolve_external_id(&self, external_id: &str) -> Result<String, Box<dyn Error>> {
-        let record = sqlx::query!(
-            "SELECT user_id FROM storage_profiles WHERE external_id = $1",
-            external_id
-        )
-            .fetch_one(&self.pool)
-            .await?;
 
-        Ok(record.user_id.to_string())
-    }
-
-    async fn is_blocked(&self, internal_id: Uuid) -> Result<bool, Box<dyn Error>> {
-        let record = sqlx::query!(
-            "SELECT is_blocked FROM storage_profiles WHERE user_id = $1",
-            internal_id
-        )
-            .fetch_one(&self.pool)
-            .await?;
-
-        Ok(record.is_blocked)
-    }
-}
 
 #[async_trait]
 impl StorageProfileRepository for StorageProfileRepositoryImpl {
@@ -66,14 +36,17 @@ impl StorageProfileRepository for StorageProfileRepositoryImpl {
         let sp = sqlx::query_as!(
             StorageProfile,
             r#"
-        INSERT INTO storage_profiles (user_id, allowed_storage, taken_storage, is_blocked)
-        VALUES ($1, $2, $3, $4)
-        RETURNING user_id, allowed_storage, taken_storage, is_blocked
+        INSERT INTO storage_profiles (user_id, allowed_storage, taken_storage)
+        VALUES ($1, $2, $3)
+        -- A no-op DO UPDATE rather than DO NOTHING: it makes the statement idempotent
+        -- under redelivery while still emitting a RETURNING row for fetch_one. Writing
+        -- allowed_storage here would clobber a quota an admin has since raised.
+        ON CONFLICT (user_id) DO UPDATE SET taken_storage = storage_profiles.taken_storage
+        RETURNING user_id, allowed_storage, taken_storage
         "#,
             storage_profile.user_id,
             storage_profile.allowed_storage,
             storage_profile.taken_storage,
-            storage_profile.is_blocked,
         )
         .fetch_one(&self.pool)
         .await?;
@@ -85,7 +58,7 @@ impl StorageProfileRepository for StorageProfileRepositoryImpl {
         let sp = sqlx::query_as!(
             StorageProfile,
             r#"
-        SELECT user_id, allowed_storage, taken_storage, is_blocked
+        SELECT user_id, allowed_storage, taken_storage
         FROM storage_profiles
         WHERE user_id = $1
         "#,
@@ -98,42 +71,17 @@ impl StorageProfileRepository for StorageProfileRepositoryImpl {
         Ok(sp)
     }
 
-    async fn save(&self, storage_profile: StorageProfile) -> Result<(), DataError> {
+    async fn update_quota(&self, user_id: Uuid, allowed_storage: i64) -> Result<(), DataError> {
+        // Deliberately narrow: a whole-row write here would push back a `taken_storage`
+        // read before a concurrent upload, delete or archive committed, silently undoing
+        // that change.
         sqlx::query!(
             r#"
             UPDATE storage_profiles
-            SET allowed_storage = $1, taken_storage = $2, is_blocked = $3
-            WHERE user_id = $4
-            "#,
-            storage_profile.allowed_storage,
-            storage_profile.taken_storage,
-            storage_profile.is_blocked,
-            storage_profile.user_id
-        )
-        .execute(&self.pool)
-        .await
-        .map_err(|e| DataError::DatabaseError(e))?;
-
-        Ok(())
-    }
-
-    async fn update_quota_and_block(
-        &self,
-        user_id: Uuid,
-        allowed_storage: i64,
-        is_blocked: bool,
-    ) -> Result<(), DataError> {
-        // Deliberately narrow. `save` rewrites the whole row, so using it here would
-        // write back a `taken_storage` read before a concurrent upload, delete or
-        // archive committed — silently undoing that change.
-        sqlx::query!(
-            r#"
-            UPDATE storage_profiles
-            SET allowed_storage = $1, is_blocked = $2
-            WHERE user_id = $3
+            SET allowed_storage = $1
+            WHERE user_id = $2
             "#,
             allowed_storage,
-            is_blocked,
             user_id
         )
         .execute(&self.pool)
