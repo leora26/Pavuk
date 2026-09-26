@@ -98,7 +98,7 @@ impl FolderRepository for FolderRepositoryImpl {
             r#"
             SELECT f.*
             FROM folders f
-            WHERE LOWER(name) LIKE LOWER($1) AND is_deleted = false AND owner_id = $1
+            WHERE LOWER(name) LIKE LOWER($1) AND is_deleted = false AND owner_id = $2
             "#,
             search_query,
             user_id

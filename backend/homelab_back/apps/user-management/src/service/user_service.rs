@@ -1,6 +1,5 @@
 use crate::data::create_user_command::CreateUserCommand;
 use crate::db::user_repository::UserRepository;
-use crate::events::rabbitmq::RabbitMqPublisher;
 use crate::helpers::data_error::DataError;
 use crate::helpers::user_email::UserEmail;
 use async_trait::async_trait;
@@ -9,6 +8,7 @@ use homelab_core::events::{UserCreatedEvent, UserUpdatedEvent};
 use homelab_core::user_domain::user::User;
 use std::sync::Arc;
 use uuid::Uuid;
+use homelab_core::helpers::rabbitmq_publisher::RabbitMqPublisher;
 
 #[async_trait]
 pub trait UserService: Send + Sync {

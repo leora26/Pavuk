@@ -7,9 +7,9 @@ use async_trait::async_trait;
 use derive_new::new;
 use uuid::Uuid;
 use homelab_core::events::{DeletionType, TrashCleanUpTriggeredEvent};
+use homelab_core::helpers::rabbitmq_publisher::RabbitMqPublisher;
 use homelab_core::nas_domain::folder::Folder;
 use crate::db::folder_repository::FolderRepository;
-use crate::events::rabbitmq::RabbitMqPublisher;
 use crate::service::contract::folder_write_service::FolderWriteService;
 
 #[derive(new)]

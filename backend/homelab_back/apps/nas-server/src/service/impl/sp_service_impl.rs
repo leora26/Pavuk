@@ -3,11 +3,11 @@ use async_trait::async_trait;
 use derive_new::new;
 use uuid::Uuid;
 use homelab_core::events::{UserCreatedEvent, UserUpdatedEvent};
+use homelab_core::helpers::rabbitmq_publisher::RabbitMqPublisher;
 use homelab_core::nas_domain::storage_profile::StorageProfile;
 use homelab_core::nas_domain::storage_stats::StorageStats;
 use crate::db::nas_identity_repository::NasIdentityRepository;
 use crate::db::storage_profile_repository::StorageProfileRepository;
-use crate::events::rabbitmq::RabbitMqPublisher;
 use crate::helpers::data_error::DataError;
 use crate::service::contract::sp_service::StorageProfileService;
 

@@ -16,7 +16,6 @@ use crate::db::nas_identity_repository::NasIdentityRepositoryImpl;
 use crate::db::shared_file_repository::SharedFileRepositoryImpl;
 use crate::db::storage_profile_repository::StorageProfileRepositoryImpl;
 use crate::events::nas_event_handler::NasEventHandler;
-use crate::events::rabbitmq::RabbitMqPublisher;
 use crate::grpc::file_grpc_service::GrpcFileService;
 use crate::grpc::file_label_grpc_service::GrpcFileLabelService;
 use crate::grpc::folder_grpc_service::GrpcFolderService;
@@ -69,6 +68,7 @@ use tonic::service::Interceptor;
 use tonic::transport::Server;
 use tracing_subscriber::EnvFilter;
 use homelab_core::auth::init_auth_interceptor::init_auth_interceptor;
+use homelab_core::helpers::rabbitmq_publisher::RabbitMqPublisher;
 use homelab_proto::nas::volume_service_server::VolumeServiceServer;
 use crate::grpc::volume_grpc_service::GrpcVolumeService;
 

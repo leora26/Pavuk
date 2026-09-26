@@ -1,7 +1,6 @@
 use crate::data::create_white_listed_user_command::CreateWhiteListedUserCommand;
 use crate::db::user_repository::UserRepository;
 use crate::db::white_listed_user_repository::WhiteListedUserRepository;
-use crate::events::rabbitmq::RabbitMqPublisher;
 use crate::helpers::data_error::DataError;
 use crate::helpers::user_email::UserEmail;
 use actix_web::cookie::time::OffsetDateTime;
@@ -12,6 +11,7 @@ use homelab_core::user_domain::user::User;
 use homelab_core::user_domain::white_listed_user::WhiteListedUser;
 use std::sync::Arc;
 use uuid::Uuid;
+use homelab_core::helpers::rabbitmq_publisher::RabbitMqPublisher;
 
 #[async_trait]
 pub trait WhiteListedUserService: Send + Sync {

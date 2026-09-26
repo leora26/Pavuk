@@ -1,6 +1,5 @@
 use crate::db::user_repository::UserRepositoryImpl;
 use crate::db::white_listed_user_repository::WhiteListedUserRepositoryImpl;
-use crate::events::rabbitmq::RabbitMqPublisher;
 use crate::grpc::user_grpc_service::GrpcUserService;
 use crate::service::user_service::{UserService, UserServiceImpl};
 use crate::service::white_listed_user_service::{WhiteListedServiceImpl, WhiteListedUserService};
@@ -17,10 +16,10 @@ use tonic::service::Interceptor;
 use tonic::transport::Server;
 use tracing_subscriber::EnvFilter;
 use homelab_core::auth::init_auth_interceptor::init_auth_interceptor;
+use homelab_core::helpers::rabbitmq_publisher::RabbitMqPublisher;
 
 pub mod data;
 pub mod db;
-pub mod events;
 pub mod grpc;
 pub mod helpers;
 pub mod service;
