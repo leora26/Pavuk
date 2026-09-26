@@ -10,7 +10,7 @@ pub trait FolderRepository: Send + Sync {
     async fn get_root(&self, user_id: Uuid) -> Result<Option<Folder>, DataError>;
     async fn get_by_id(&self, folder_id: Uuid) -> Result<Option<Folder>, DataError>;
     async fn get_children_by_id(&self, folder_id: Uuid) -> Result<Vec<Folder>, DataError>;
-    async fn search_by_name(&self, search_query: String) -> Result<Vec<Folder>, DataError>;
+    async fn search_by_name(&self, search_query: String, user_id: Uuid) -> Result<Vec<Folder>, DataError>;
     async fn filter_files_in_folder(
         &self,
         file_types: &[FileType],
@@ -92,15 +92,16 @@ impl FolderRepository for FolderRepositoryImpl {
         Ok(folders)
     }
 
-    async fn search_by_name(&self, search_query: String) -> Result<Vec<Folder>, DataError> {
+    async fn search_by_name(&self, search_query: String, user_id: Uuid) -> Result<Vec<Folder>, DataError> {
         let f: Vec<Folder> = sqlx::query_as!(
             Folder,
             r#"
             SELECT f.*
             FROM folders f
-            WHERE LOWER(name) LIKE LOWER($1) AND is_deleted = false
+            WHERE LOWER(name) LIKE LOWER($1) AND is_deleted = false AND owner_id = $1
             "#,
-            search_query
+            search_query,
+            user_id
         )
         .fetch_all(&self.pool)
         .await

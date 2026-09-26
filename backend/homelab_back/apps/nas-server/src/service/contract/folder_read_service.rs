@@ -9,7 +9,7 @@ pub trait FolderReadService: Send + Sync {
     async fn get_root(&self, user_id: Uuid) -> Result<Option<Folder>, DataError>;
     async fn get_by_id(&self, folder_id: Uuid) -> Result<Option<Folder>, DataError>;
     async fn get_children_by_id(&self, folder_id: Uuid) -> Result<Vec<Folder>, DataError>;
-    async fn search_folder(&self, search_query: String) -> Result<Vec<Folder>, DataError>;
+    async fn search_folder(&self, search_query: String, user_id: Uuid) -> Result<Vec<Folder>, DataError>;
     async fn filter_files_by_folder(
         &self,
         file_types: &[FileType],

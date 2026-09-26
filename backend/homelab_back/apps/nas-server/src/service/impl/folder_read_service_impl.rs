@@ -46,9 +46,9 @@ impl FolderReadService for FolderReadServiceImpl {
         self.folder_repo.get_children_by_id(folder_id).await
     }
 
-    async fn search_folder(&self, search_query: String) -> Result<Vec<Folder>, DataError> {
+    async fn search_folder(&self, search_query: String, user_id: Uuid) -> Result<Vec<Folder>, DataError> {
         self.folder_repo
-            .search_by_name(format!("%{}%", search_query))
+            .search_by_name(format!("%{}%", search_query), user_id)
             .await
     }
 

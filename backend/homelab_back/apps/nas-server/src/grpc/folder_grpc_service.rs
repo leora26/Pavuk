@@ -253,12 +253,17 @@ impl FolderService for GrpcFolderService {
         &self,
         request: Request<SearchFolderRequest>,
     ) -> Result<Response<FolderResponseList>, Status> {
+
+        let user_id = request
+            .get_internal_id(&self.app_state.cached_identity_resolver)
+            .await?;
+
         let req = request.into_inner();
 
         let folders = self
             .app_state
             .folder_read_service
-            .search_folder(req.query)
+            .search_folder(req.query, user_id)
             .await?;
 
         let proto_folders = folders
