@@ -102,8 +102,8 @@ impl File {
 
     pub fn rename(&mut self, new_name: String) {
         self.file_type = File::get_file_type(&new_name);
-
         self.name = new_name;
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
     pub fn set_as_deleted(&mut self) {
@@ -126,7 +126,8 @@ impl File {
 
     // TODO: For when i implement overwriting file
     pub fn update_size(&mut self, new_size: i64) {
-        self.size = new_size
+        self.size = new_size;
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
     pub fn build_file_path(&self, storage_path: &Path) -> PathBuf {
@@ -161,11 +162,13 @@ impl File {
     }
     
     pub fn update_type(&mut self, file_type: FileType) {
-        self.file_type = file_type
+        self.file_type = file_type;
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
     pub fn update_parent_folder(&mut self, new_parent_folder: Uuid) {
         self.parent_folder_id = new_parent_folder;
+        self.updated_at = OffsetDateTime::now_utc();
     }
 
     pub fn is_archived(&self, storage_path: &Path) -> bool {
